@@ -1,18 +1,14 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-oauth2/oauth2/v4/generates"
 	oredis "github.com/go-oauth2/redis/v4"
 	"github.com/go-redis/redis/v8"
-	"io"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"time"
@@ -26,32 +22,15 @@ import (
 )
 
 var (
-	dumpvar   bool
-	idvar     string
-	secretvar string
-	domainvar string
-	portvar   int
-
 	manager = manage.NewDefaultManager()
 	srv     = server.NewServer(server.NewConfig(), manager)
 )
 
-func init() {
-	flag.BoolVar(&dumpvar, "d", true, "Dump requests and responses")
-	flag.StringVar(&idvar, "i", "PublicAPI", "The client id being passed in")
-	flag.StringVar(&secretvar, "s", "test", "The client secret being passed in")
-	flag.StringVar(&domainvar, "r", "http://localhost:9094", "The domain of the redirect url")
-	flag.IntVar(&portvar, "p", 9096, "the base port for the server")
-}
-
 func main() {
 	r := gin.Default()
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
 	flag.Parse()
-	if dumpvar {
-		log.Println("Dumping requests")
-	}
-
 	manager.SetAuthorizeCodeTokenCfg(manage.DefaultAuthorizeCodeTokenCfg)
 
 	// use redis token store
@@ -65,19 +44,12 @@ func main() {
 	manager.MapAccessGenerate(generates.NewAccessGenerate())
 
 	clientStore := store.NewClientStore()
-	clientStore.Set(idvar, &models.Client{
-		ID:     idvar,
-		Secret: secretvar,
-		Domain: domainvar,
+	clientStore.Set("PublicAPI", &models.Client{
+		ID:     "PublicAPI",
+		Secret: "test",
+		Domain: "http://localhost:9094",
 	})
 	manager.MapClientStorage(clientStore)
-
-	srv.SetPasswordAuthorizationHandler(func(ctx context.Context, username, password string) (userID string, err error) {
-		if username == "test" && password == "test" {
-			userID = "test"
-		}
-		return
-	})
 
 	srv.SetUserAuthorizationHandler(userAuthorizeHandler)
 
@@ -100,10 +72,6 @@ func main() {
 	r.POST("/oauth/authorize", authorizeHandler)
 
 	r.POST("/oauth/token", func(c *gin.Context) {
-		if dumpvar {
-			_ = dumpRequest(os.Stdout, "token", c.Request) // Ignore the error
-		}
-
 		err := srv.HandleTokenRequest(c.Writer, c.Request)
 		if err != nil {
 			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
@@ -111,9 +79,6 @@ func main() {
 	})
 
 	r.GET("/test", func(c *gin.Context) {
-		if dumpvar {
-			_ = dumpRequest(os.Stdout, "test", c.Request) // Ignore the error
-		}
 		token, err := srv.ValidationBearerToken(c.Request)
 		if err != nil {
 			http.Error(c.Writer, err.Error(), http.StatusBadRequest)
@@ -124,32 +89,20 @@ func main() {
 			"expires_in": int64(token.GetAccessCreateAt().Add(token.GetAccessExpiresIn()).Sub(time.Now()).Seconds()),
 			"client_id":  token.GetClientID(),
 			"user_id":    token.GetUserID(),
+			"scope":      token.GetScope(),
+			"create_at":  token.GetAccessCreateAt(),
 		}
 		e := json.NewEncoder(c.Writer)
 		e.SetIndent("", "  ")
 		e.Encode(data)
 	})
 
-	log.Printf("Server is running at %d port.\n", portvar)
-	log.Printf("Point your OAuth client Auth endpoint to %s:%d%s", "http://localhost", portvar, "/oauth/authorize")
-	log.Printf("Point your OAuth client Token endpoint to %s:%d%s", "http://localhost", portvar, "/oauth/token")
-	log.Fatal(r.Run(fmt.Sprintf(":%d", portvar)))
-}
-
-func dumpRequest(writer io.Writer, header string, r *http.Request) error {
-	data, err := httputil.DumpRequest(r, true)
-	if err != nil {
-		return err
-	}
-	writer.Write([]byte("\n" + header + ": \n"))
-	writer.Write(data)
-	return nil
+	log.Fatal(r.Run(":9096"))
 }
 
 func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string, err error) {
-	if dumpvar {
-		_ = dumpRequest(os.Stdout, "userAuthorizeHandler", r) // Ignore the error
-	}
+	log.Println("userAuthorizeHandler")
+
 	store, err := session.Start(r.Context(), w, r)
 	if err != nil {
 		return
@@ -176,8 +129,11 @@ func userAuthorizeHandler(w http.ResponseWriter, r *http.Request) (userID string
 }
 
 func loginHandler(c *gin.Context) {
-	if dumpvar {
-		_ = dumpRequest(os.Stdout, "login", c.Request) // Ignore the error
+	if c.Request.Method == "GET" {
+		log.Println("loginHandler GET")
+	}
+	if c.Request.Method == "POST" {
+		log.Println("loginHandler POST")
 	}
 	store, err := session.Start(c.Request.Context(), c.Writer, c.Request)
 	if err != nil {
@@ -195,7 +151,6 @@ func loginHandler(c *gin.Context) {
 		store.Set("LoggedInUserID", c.Request.Form.Get("username"))
 		store.Save()
 
-		// /auth로 리다이렉트
 		c.Writer.Header().Set("Location", "/auth")
 		c.Writer.WriteHeader(http.StatusFound)
 		return
@@ -204,9 +159,13 @@ func loginHandler(c *gin.Context) {
 }
 
 func authHandler(c *gin.Context) {
-	if dumpvar {
-		_ = dumpRequest(os.Stdout, "auth", c.Request) // Ignore the error
+	if c.Request.Method == "GET" {
+		log.Println("authHandler GET")
 	}
+	if c.Request.Method == "POST" {
+		log.Println("authHandler POST")
+	}
+
 	store, err := session.Start(nil, c.Writer, c.Request)
 	if err != nil {
 		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
@@ -223,8 +182,11 @@ func authHandler(c *gin.Context) {
 }
 
 func authorizeHandler(c *gin.Context) {
-	if dumpvar {
-		dumpRequest(os.Stdout, "authorize", c.Request)
+	if c.Request.Method == "GET" {
+		log.Println("authorizeHandler GET")
+	}
+	if c.Request.Method == "POST" {
+		log.Println("authorizeHandler POST")
 	}
 
 	store, err := session.Start(c.Request.Context(), c.Writer, c.Request)
@@ -235,10 +197,10 @@ func authorizeHandler(c *gin.Context) {
 
 	var form url.Values
 	if v, ok := store.Get("ReturnUri"); ok {
+		log.Println(v.(url.Values))
 		form = v.(url.Values)
 	}
 	c.Request.Form = form
-
 	store.Delete("ReturnUri")
 	store.Save()
 
@@ -249,6 +211,7 @@ func authorizeHandler(c *gin.Context) {
 }
 
 func outputHTML(c *gin.Context, filename string) {
+	log.Println("outputHTML")
 	file, err := os.Open(filename)
 	if err != nil {
 		http.Error(c.Writer, err.Error(), 500)

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/clientcredentials"
 	"io"
 	"log"
 	"net/http"
@@ -23,30 +22,36 @@ var (
 	config = oauth2.Config{
 		ClientID:     "PublicAPI",
 		ClientSecret: "test",
-		Scopes:       []string{"employee", "client"},
+		Scopes:       []string{"client"},
 		RedirectURL:  "http://localhost:9094/oauth2",
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  authServerURL + "/oauth/authorize",
 			TokenURL: authServerURL + "/oauth/token",
 		},
 	}
-	globalToken *oauth2.Token // Non-concurrent security
+	globalToken *oauth2.Token
 )
 
 func main() {
-	r := gin.Default()
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
+	r := gin.Default()
 	r.GET("/", func(c *gin.Context) {
-		u := config.AuthCodeURL("xyz",
+		log.Println("GET /")
+
+		u := config.AuthCodeURL("wade",
 			oauth2.SetAuthURLParam("code_challenge", genCodeChallengeS256("s256example")),
 			oauth2.SetAuthURLParam("code_challenge_method", "S256"))
+		log.Printf("Redirect URL : %s", u)
 		c.Redirect(http.StatusFound, u)
 	})
 
 	r.GET("/oauth2", func(c *gin.Context) {
+		log.Println("client /oauth2")
+
 		_ = c.Request.ParseForm()
 		state := c.Request.Form.Get("state")
-		if state != "xyz" {
+		if state != "wade" {
 			http.Error(c.Writer, "State invalid", http.StatusBadRequest)
 			return
 		}
@@ -72,6 +77,8 @@ func main() {
 	})
 
 	r.GET("/refresh", func(c *gin.Context) {
+		log.Println("client /refresh")
+
 		if globalToken == nil {
 			http.Redirect(c.Writer, c.Request, "/", http.StatusFound)
 			return
@@ -91,6 +98,8 @@ func main() {
 	})
 
 	r.GET("/try", func(c *gin.Context) {
+		log.Println("client /try")
+
 		if globalToken == nil {
 			c.Redirect(http.StatusFound, "/")
 			return
@@ -107,40 +116,8 @@ func main() {
 		io.Copy(c.Writer, resp.Body)
 	})
 
-	r.GET("/pwd", func(c *gin.Context) {
-		token, err := config.PasswordCredentialsToken(context.Background(), "test", "test")
-		if err != nil {
-			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		globalToken = token
-		e := json.NewEncoder(c.Writer)
-		e.SetIndent("", "  ")
-		e.Encode(token)
-	})
-
-	r.GET("/client", func(c *gin.Context) {
-		cfg := clientcredentials.Config{
-			ClientID:     config.ClientID,
-			ClientSecret: config.ClientSecret,
-			TokenURL:     config.Endpoint.TokenURL,
-		}
-
-		token, err := cfg.Token(context.Background())
-		if err != nil {
-			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		e := json.NewEncoder(c.Writer)
-		e.SetIndent("", "  ")
-		e.Encode(token)
-	})
-
 	log.Println("Client is running at 9094 port.Please open http://localhost:9094")
 	log.Fatal(r.Run(":9094"))
-	//log.Fatal(http.ListenAndServe(":9094", nil))
 }
 
 func genCodeChallengeS256(s string) string {
