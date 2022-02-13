@@ -44,9 +44,9 @@ type OauthClients struct {
 }
 
 type PublicApiInfo struct {
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
-	UserID       string `json:"user_id"`
+	ClientID     string `json:"client_id" form:"client_id"`
+	ClientSecret string `json:"client_secret" form:"client_secret"`
+	UserID       string `json:"user_id" form:"user_id"`
 }
 
 func init() {
@@ -72,11 +72,6 @@ func main() {
 
 		requestClient := new(PublicApiInfo)
 		_ = c.Bind(requestClient)
-
-		// Bind 대체코드
-		requestClient.ClientID = c.Request.Form.Get("client_id")
-		requestClient.ClientSecret = c.Request.Form.Get("client_secret")
-		requestClient.UserID = c.Request.Form.Get("user_id")
 
 		clientConfig := new(clientcredentials.Config)
 		responseClient, flag := isValidClient(requestClient)
