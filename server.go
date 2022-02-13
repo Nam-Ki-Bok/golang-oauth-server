@@ -190,7 +190,12 @@ func publicApiRequestHandler(c *gin.Context) {
 		return
 	}
 
+	log.Println(token)
 	log.Println(token.TokenType)
 	log.Println(token.AccessToken)
 	log.Println(token.Expiry)
+	c.JSON(200, gin.H{
+		"user_id":      requestClient.UserID,
+		"access_token": token.AccessToken,
+	})
 }
