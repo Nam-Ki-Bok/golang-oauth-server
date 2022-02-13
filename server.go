@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/go-oauth2/oauth2/v4/errors"
 	"github.com/go-oauth2/oauth2/v4/generates"
@@ -8,8 +9,7 @@ import (
 	"github.com/go-oauth2/oauth2/v4/models"
 	"github.com/go-oauth2/oauth2/v4/server"
 	"github.com/go-oauth2/oauth2/v4/store"
-	oredis "github.com/go-oauth2/redis/v4"
-	"github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis/v7"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"github.com/joho/godotenv"
@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 var (
@@ -30,7 +31,8 @@ var (
 	responseClient *OauthClients
 	clientConfig   *clientcredentials.Config
 
-	db *gorm.DB
+	mariaDB *gorm.DB
+	redisDB *redis.Client
 )
 
 type OauthClients struct {
@@ -53,6 +55,13 @@ type PublicApiInfo struct {
 	UserID       string `json:"user_id" form:"user_id"`
 }
 
+type AuthorizationInfo struct {
+	UserID      string    `json:"user_id"`
+	AccessToken string    `json:"access_token"`
+	Scope       []string  `json:"scope"`
+	ExpiresIn   time.Time `json:"expires_in"`
+}
+
 func init() {
 	initManager()
 	initServer()
@@ -71,26 +80,7 @@ func main() {
 
 	r.POST("/user/token", publicApiRequestHandler)
 
-	r.GET("/user/info/:id", func(c *gin.Context) {
-		userID := c.Param("id")
-
-		tokenInfo, err := srv.ValidationBearerToken(c.Request)
-		log.Println(tokenInfo)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-
-		responseUser := new(OauthUsers)
-		db.Where("id = ?", userID).Find(responseUser)
-		c.JSON(http.StatusOK, gin.H{
-			"user_id": responseUser.ID,
-			"phone":   responseUser.Phone,
-			"email":   responseUser.Email,
-		})
-	})
+	r.GET("/user/info/:id", userInfoHandler)
 
 	log.Fatal(r.Run(":9096"))
 }
@@ -99,12 +89,12 @@ func initManager() {
 	manager.SetAuthorizeCodeTokenCfg(manage.DefaultAuthorizeCodeTokenCfg)
 
 	// use redis token store
-	manager.MapTokenStorage(oredis.NewRedisStore(&redis.Options{
-		Addr: "127.0.0.1:6379",
-	}))
+	//manager.MapTokenStorage(oredis.NewRedisStore(&redis.Options{
+	//	Addr: "127.0.0.1:6379",
+	//}))
 
-	// generate jwt access token
-	//manager.MapAccessGenerate(generates.NewJWTAccessGenerate("", []byte("00000000"), jwt.SigningMethodHS512))
+	manager.MustTokenStorage(store.NewMemoryTokenStore())
+
 	manager.MapAccessGenerate(generates.NewAccessGenerate())
 
 	manager.MapClientStorage(clientStore)
@@ -127,21 +117,26 @@ func initDatabase() {
 		log.Fatal("Error loading .env file")
 	}
 
-	db, err = gorm.Open("mysql", os.Getenv("DATA_CONNECTION_INFO"))
+	mariaDB, err = gorm.Open("mysql", os.Getenv("DATA_CONNECTION_INFO"))
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	db.LogMode(true)
+	mariaDB.LogMode(true)
+
+	redisDB = redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
 }
 
 func isValidClient(c *gin.Context) bool {
 	responseClient = new(OauthClients)
-	err := db.Where("client_id = ?", requestClient.ClientID).Find(responseClient).Error
+	err := mariaDB.Where("client_id = ?", requestClient.ClientID).Find(responseClient).Error
 
 	if err != nil ||
 		requestClient.ClientID != responseClient.ClientID ||
 		requestClient.ClientSecret != responseClient.ClientSecret ||
-		responseClient.ClientIP != c.ClientIP() {
+		//responseClient.ClientIP != c.ClientIP() {
+		"::1" != c.ClientIP() {
 		return false
 	}
 
@@ -169,7 +164,6 @@ func setScope() []string {
 	return strings.Split(responseClient.Scope, "+")
 }
 
-// bindRequestClient get client data from form
 func bindRequestClient(c *gin.Context) {
 	requestClient = new(PublicApiInfo)
 	_ = c.Bind(requestClient)
@@ -194,9 +188,55 @@ func publicApiRequestHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"access_token": token.AccessToken,
-		"scope":        clientConfig.Scopes,
-		"expires_in":   token.Expiry,
+	authorizationInfo := &AuthorizationInfo{
+		UserID:      requestClient.UserID,
+		AccessToken: token.AccessToken,
+		Scope:       clientConfig.Scopes,
+		ExpiresIn:   token.Expiry,
+	}
+	saveAuthorizationInfo(authorizationInfo)
+
+	c.JSON(200, authorizationInfo)
+	return
+}
+
+func userInfoHandler(c *gin.Context) {
+	userID := c.Param("id")
+
+	tokenInfo, err := srv.ValidationBearerToken(c.Request)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if !isValidScope(tokenInfo.GetScope(), "write") {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "invalid scope",
+		})
+		return
+	}
+
+	responseUser := new(OauthUsers)
+	mariaDB.Where("id = ?", userID).Find(responseUser)
+	c.JSON(http.StatusOK, gin.H{
+		"user_id": responseUser.ID,
+		"phone":   responseUser.Phone,
+		"email":   responseUser.Email,
 	})
+}
+
+func saveAuthorizationInfo(authorizationInfo *AuthorizationInfo) {
+	data, _ := json.Marshal(authorizationInfo)
+	redisDB.Set(authorizationInfo.UserID, data, authorizationInfo.ExpiresIn.Sub(time.Now()))
+}
+
+func isValidScope(userScope string, apiScope string) bool {
+	for _, scope := range strings.Split(userScope, " ") {
+		if scope == apiScope {
+			return true
+		}
+	}
+	return false
 }
