@@ -135,6 +135,8 @@ func setClientStore() {
 }
 
 func setClientConfig() {
+	clientConfig = new(clientcredentials.Config)
+
 	clientConfig.ClientID = responseClient.ClientID
 	clientConfig.ClientSecret = responseClient.ClientSecret
 	clientConfig.TokenURL = "http://localhost:9096/oauth/token"
@@ -155,13 +157,16 @@ func dumpRequest(writer io.Writer, header string, r *http.Request) error {
 	return nil
 }
 
+func bindRequestClient(c *gin.Context) {
+	requestClient = new(PublicApiInfo)
+	_ = c.Bind(requestClient)
+}
+
 func publicApiRequestHandler(c *gin.Context) {
 	_ = dumpRequest(os.Stdout, "user/token", c.Request)
 
-	requestClient = new(PublicApiInfo)
-	_ = c.Bind(requestClient)
+	bindRequestClient(c)
 
-	clientConfig = new(clientcredentials.Config)
 	if isValidClient() {
 		setClientConfig()
 		setClientStore()
