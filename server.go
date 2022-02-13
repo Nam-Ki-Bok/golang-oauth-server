@@ -5,6 +5,7 @@ import (
 	"github.com/go-oauth2/oauth2/v4/errors"
 	"github.com/go-oauth2/oauth2/v4/generates"
 	"github.com/go-oauth2/oauth2/v4/manage"
+	"github.com/go-oauth2/oauth2/v4/models"
 	"github.com/go-oauth2/oauth2/v4/server"
 	"github.com/go-oauth2/oauth2/v4/store"
 	oredis "github.com/go-oauth2/redis/v4"
@@ -14,15 +15,22 @@ import (
 	"github.com/joho/godotenv"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/clientcredentials"
+	"io"
 	"log"
 	"net/http"
+	"net/http/httputil"
 	"os"
+	"strings"
 )
 
 var (
 	manager     = manage.NewDefaultManager()
 	srv         = server.NewServer(server.NewConfig(), manager)
 	clientStore = store.NewClientStore()
+
+	//requestClient  = new(PublicApiInfo)
+	//responseClient = new(OauthClients)
+	//clientConfig   = new(clientcredentials.Config)
 
 	db *gorm.DB
 )
@@ -35,28 +43,24 @@ type OauthClients struct {
 	Scope        string `gorm:"varchar(1600);primary_key" json:"scope"`
 }
 
+type PublicApiInfo struct {
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	UserID       string `json:"user_id"`
+}
+
 func init() {
 	initManager()
 	initServer()
 	initDatabase()
 }
 
-func isValidClient() {
-
-}
-
-func setClientStore() {
-
-}
-
-func setScope() {
-
-}
-
 func main() {
 	r := gin.Default()
 
 	r.POST("/oauth/token", func(c *gin.Context) {
+		_ = dumpRequest(os.Stdout, "oauth/token", c.Request)
+
 		err := srv.HandleTokenRequest(c.Writer, c.Request)
 		if err != nil {
 			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
@@ -64,16 +68,37 @@ func main() {
 	})
 
 	r.GET("/user/token", func(c *gin.Context) {
-		requestDTO := new(clientcredentials.Config)
-		_ = c.Bind(requestDTO)
+		_ = dumpRequest(os.Stdout, "user/token", c.Request)
 
-		token, err := requestDTO.Token(context.Background())
+		requestClient := new(PublicApiInfo)
+		_ = c.Bind(requestClient)
+
+		// Bind 대체코드
+		requestClient.ClientID = c.Request.Form.Get("client_id")
+		requestClient.ClientSecret = c.Request.Form.Get("client_secret")
+		requestClient.UserID = c.Request.Form.Get("user_id")
+
+		clientConfig := new(clientcredentials.Config)
+		responseClient, flag := isValidClient(requestClient)
+		if flag {
+			setClientConfig(responseClient, clientConfig)
+			setClientStore(responseClient)
+		} else {
+			c.JSON(500, gin.H{
+				"message": "Invalid Client!",
+			})
+			return
+		}
+
+		token, err := clientConfig.Token(context.Background())
 		if err != nil {
 			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		log.Println(token)
+		log.Println(token.TokenType)
+		log.Println(token.AccessToken)
+		log.Println(token.Expiry)
 	})
 
 	log.Fatal(r.Run(":9096"))
@@ -91,11 +116,6 @@ func initManager() {
 	//manager.MapAccessGenerate(generates.NewJWTAccessGenerate("", []byte("00000000"), jwt.SigningMethodHS512))
 	manager.MapAccessGenerate(generates.NewAccessGenerate())
 
-	//clientStore.Set("PublicAPI", &models.Client{
-	//	ID:     "PublicAPI",
-	//	Secret: "test",
-	//	Domain: "http://localhost:9094",
-	//})
 	manager.MapClientStorage(clientStore)
 }
 
@@ -121,4 +141,44 @@ func initDatabase() {
 		log.Fatal(err.Error())
 	}
 	db.LogMode(true)
+}
+
+func isValidClient(requestClient *PublicApiInfo) (*OauthClients, bool) {
+	responseClient := new(OauthClients)
+	err := db.Where("client_id = ?", requestClient.ClientID).Find(responseClient).Error
+
+	if err != nil || requestClient.ClientID != responseClient.ClientID || requestClient.ClientSecret != responseClient.ClientSecret {
+		return responseClient, false
+	}
+
+	return responseClient, true
+}
+
+func setClientStore(responseClient *OauthClients) {
+	_ = clientStore.Set(responseClient.ClientID, &models.Client{
+		ID:     responseClient.ClientID,
+		Secret: responseClient.ClientSecret,
+		Domain: responseClient.ServerIP,
+	})
+}
+
+func setClientConfig(responseClient *OauthClients, clientConfig *clientcredentials.Config) {
+	clientConfig.ClientID = responseClient.ClientID
+	clientConfig.ClientSecret = responseClient.ClientSecret
+	clientConfig.TokenURL = "http://localhost:9096/oauth/token"
+	clientConfig.Scopes = setScope(responseClient)
+}
+
+func setScope(responseClient *OauthClients) []string {
+	return strings.Split(responseClient.Scope, "+")
+}
+
+func dumpRequest(writer io.Writer, header string, r *http.Request) error {
+	data, err := httputil.DumpRequest(r, true)
+	if err != nil {
+		return err
+	}
+	writer.Write([]byte("\n" + header + ": \n"))
+	writer.Write(data)
+	return nil
 }
