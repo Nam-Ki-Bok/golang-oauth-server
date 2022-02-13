@@ -15,10 +15,8 @@ import (
 	"github.com/joho/godotenv"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/clientcredentials"
-	"io"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"strings"
 )
@@ -44,9 +42,9 @@ type OauthClients struct {
 }
 
 type OauthUsers struct {
-	UserID string `gorm:"varchar(80);primary_key"`
-	Phone  string `gorm:"varchar(80)"`
-	Email  string `gorm:"varchar(80)"`
+	ID    string `gorm:"varchar(80);primary_key"`
+	Phone string `gorm:"varchar(80)"`
+	Email string `gorm:"varchar(80)"`
 }
 
 type PublicApiInfo struct {
@@ -65,17 +63,34 @@ func main() {
 	r := gin.Default()
 
 	r.POST("/oauth/token", func(c *gin.Context) {
-		_ = dumpRequest(os.Stdout, "oauth/token", c.Request)
-
 		err := srv.HandleTokenRequest(c.Writer, c.Request)
 		if err != nil {
 			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 		}
 	})
 
-	r.GET("/user/token", publicApiRequestHandler)
+	r.POST("/user/token", publicApiRequestHandler)
 
-	r.GET()
+	r.GET("/user/info/:id", func(c *gin.Context) {
+		userID := c.Param("id")
+
+		tokenInfo, err := srv.ValidationBearerToken(c.Request)
+		log.Println(tokenInfo)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
+
+		responseUser := new(OauthUsers)
+		db.Where("id = ?", userID).Find(responseUser)
+		c.JSON(http.StatusOK, gin.H{
+			"user_id": responseUser.ID,
+			"phone":   responseUser.Phone,
+			"email":   responseUser.Email,
+		})
+	})
 
 	log.Fatal(r.Run(":9096"))
 }
@@ -151,24 +166,12 @@ func setScope() []string {
 	return strings.Split(responseClient.Scope, "+")
 }
 
-func dumpRequest(writer io.Writer, header string, r *http.Request) error {
-	data, err := httputil.DumpRequest(r, true)
-	if err != nil {
-		return err
-	}
-	writer.Write([]byte("\n" + header + ": \n"))
-	writer.Write(data)
-	return nil
-}
-
 func bindRequestClient(c *gin.Context) {
 	requestClient = new(PublicApiInfo)
 	_ = c.Bind(requestClient)
 }
 
 func publicApiRequestHandler(c *gin.Context) {
-	_ = dumpRequest(os.Stdout, "user/token", c.Request)
-
 	bindRequestClient(c)
 
 	if isValidClient() {
