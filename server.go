@@ -43,6 +43,12 @@ type OauthClients struct {
 	Scope        string `gorm:"varchar(1600);" json:"scope"`
 }
 
+type OauthUsers struct {
+	UserID string `gorm:"varchar(80);primary_key"`
+	Phone  string `gorm:"varchar(80)"`
+	Email  string `gorm:"varchar(80)"`
+}
+
 type PublicApiInfo struct {
 	ClientID     string `json:"client_id" form:"client_id"`
 	ClientSecret string `json:"client_secret" form:"client_secret"`
