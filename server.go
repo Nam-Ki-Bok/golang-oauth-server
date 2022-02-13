@@ -32,6 +32,10 @@ var (
 	//responseClient = new(OauthClients)
 	//clientConfig   = new(clientcredentials.Config)
 
+	requestClient  *PublicApiInfo
+	responseClient *OauthClients
+	clientConfig   *clientcredentials.Config
+
 	db *gorm.DB
 )
 
@@ -111,18 +115,18 @@ func initDatabase() {
 	db.LogMode(true)
 }
 
-func isValidClient(requestClient *PublicApiInfo) (*OauthClients, bool) {
-	responseClient := new(OauthClients)
+func isValidClient() bool {
+	responseClient = new(OauthClients)
 	err := db.Where("client_id = ?", requestClient.ClientID).Find(responseClient).Error
 
 	if err != nil || requestClient.ClientID != responseClient.ClientID || requestClient.ClientSecret != responseClient.ClientSecret {
-		return responseClient, false
+		return false
 	}
 
-	return responseClient, true
+	return true
 }
 
-func setClientStore(responseClient *OauthClients) {
+func setClientStore() {
 	_ = clientStore.Set(responseClient.ClientID, &models.Client{
 		ID:     responseClient.ClientID,
 		Secret: responseClient.ClientSecret,
@@ -130,14 +134,14 @@ func setClientStore(responseClient *OauthClients) {
 	})
 }
 
-func setClientConfig(responseClient *OauthClients, clientConfig *clientcredentials.Config) {
+func setClientConfig() {
 	clientConfig.ClientID = responseClient.ClientID
 	clientConfig.ClientSecret = responseClient.ClientSecret
 	clientConfig.TokenURL = "http://localhost:9096/oauth/token"
-	clientConfig.Scopes = setScope(responseClient)
+	clientConfig.Scopes = setScope()
 }
 
-func setScope(responseClient *OauthClients) []string {
+func setScope() []string {
 	return strings.Split(responseClient.Scope, "+")
 }
 
@@ -154,14 +158,13 @@ func dumpRequest(writer io.Writer, header string, r *http.Request) error {
 func publicApiRequestHandler(c *gin.Context) {
 	_ = dumpRequest(os.Stdout, "user/token", c.Request)
 
-	requestClient := new(PublicApiInfo)
+	requestClient = new(PublicApiInfo)
 	_ = c.Bind(requestClient)
 
-	clientConfig := new(clientcredentials.Config)
-	responseClient, flag := isValidClient(requestClient)
-	if flag {
-		setClientConfig(responseClient, clientConfig)
-		setClientStore(responseClient)
+	clientConfig = new(clientcredentials.Config)
+	if isValidClient() {
+		setClientConfig()
+		setClientStore()
 	} else {
 		c.JSON(500, gin.H{
 			"message": "Invalid Client!",
