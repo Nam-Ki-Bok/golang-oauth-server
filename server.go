@@ -37,10 +37,10 @@ var (
 
 type OauthClients struct {
 	ClientID     string `gorm:"varchar(80);primary_key" json:"client_id"`
-	ClientSecret string `gorm:"varchar(80);primary_key" json:"client_secret"`
-	ServerIP     string `gorm:"varchar(16);primary_key" json:"server_ip"`
-	GrantTypes   string `gorm:"varchar(80);primary_key" json:"grant_types"`
-	Scope        string `gorm:"varchar(1600);primary_key" json:"scope"`
+	ClientSecret string `gorm:"varchar(80);" json:"client_secret"`
+	ServerIP     string `gorm:"varchar(16);" json:"server_ip"`
+	GrantTypes   string `gorm:"varchar(80);" json:"grant_types"`
+	Scope        string `gorm:"varchar(1600);" json:"scope"`
 }
 
 type PublicApiInfo struct {
@@ -68,6 +68,8 @@ func main() {
 	})
 
 	r.GET("/user/token", publicApiRequestHandler)
+
+	r.GET()
 
 	log.Fatal(r.Run(":9096"))
 }
