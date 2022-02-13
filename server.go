@@ -36,7 +36,7 @@ var (
 type OauthClients struct {
 	ClientID     string `gorm:"varchar(80);primary_key" json:"client_id"`
 	ClientSecret string `gorm:"varchar(80);" json:"client_secret"`
-	ServerIP     string `gorm:"varchar(16);" json:"server_ip"`
+	ClientIP     string `gorm:"varchar(16);" json:"client_ip"`
 	GrantTypes   string `gorm:"varchar(80);" json:"grant_types"`
 	Scope        string `gorm:"varchar(1600);" json:"scope"`
 }
@@ -134,11 +134,14 @@ func initDatabase() {
 	db.LogMode(true)
 }
 
-func isValidClient() bool {
+func isValidClient(c *gin.Context) bool {
 	responseClient = new(OauthClients)
 	err := db.Where("client_id = ?", requestClient.ClientID).Find(responseClient).Error
 
-	if err != nil || requestClient.ClientID != responseClient.ClientID || requestClient.ClientSecret != responseClient.ClientSecret {
+	if err != nil ||
+		requestClient.ClientID != responseClient.ClientID ||
+		requestClient.ClientSecret != responseClient.ClientSecret ||
+		responseClient.ClientIP != c.ClientIP() {
 		return false
 	}
 
@@ -149,7 +152,7 @@ func setClientStore() {
 	_ = clientStore.Set(responseClient.ClientID, &models.Client{
 		ID:     responseClient.ClientID,
 		Secret: responseClient.ClientSecret,
-		Domain: responseClient.ServerIP,
+		Domain: responseClient.ClientIP,
 	})
 }
 
@@ -166,6 +169,7 @@ func setScope() []string {
 	return strings.Split(responseClient.Scope, "+")
 }
 
+// bindRequestClient get client data from form
 func bindRequestClient(c *gin.Context) {
 	requestClient = new(PublicApiInfo)
 	_ = c.Bind(requestClient)
@@ -174,7 +178,7 @@ func bindRequestClient(c *gin.Context) {
 func publicApiRequestHandler(c *gin.Context) {
 	bindRequestClient(c)
 
-	if isValidClient() {
+	if isValidClient(c) {
 		setClientConfig()
 		setClientStore()
 	} else {
@@ -190,12 +194,9 @@ func publicApiRequestHandler(c *gin.Context) {
 		return
 	}
 
-	log.Println(token)
-	log.Println(token.TokenType)
-	log.Println(token.AccessToken)
-	log.Println(token.Expiry)
 	c.JSON(200, gin.H{
-		"user_id":      requestClient.UserID,
 		"access_token": token.AccessToken,
+		"scope":        clientConfig.Scopes,
+		"expires_in":   token.Expiry,
 	})
 }
