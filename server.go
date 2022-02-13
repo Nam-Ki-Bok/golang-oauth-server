@@ -28,10 +28,6 @@ var (
 	srv         = server.NewServer(server.NewConfig(), manager)
 	clientStore = store.NewClientStore()
 
-	//requestClient  = new(PublicApiInfo)
-	//responseClient = new(OauthClients)
-	//clientConfig   = new(clientcredentials.Config)
-
 	requestClient  *PublicApiInfo
 	responseClient *OauthClients
 	clientConfig   *clientcredentials.Config
