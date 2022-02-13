@@ -67,34 +67,7 @@ func main() {
 		}
 	})
 
-	r.GET("/user/token", func(c *gin.Context) {
-		_ = dumpRequest(os.Stdout, "user/token", c.Request)
-
-		requestClient := new(PublicApiInfo)
-		_ = c.Bind(requestClient)
-
-		clientConfig := new(clientcredentials.Config)
-		responseClient, flag := isValidClient(requestClient)
-		if flag {
-			setClientConfig(responseClient, clientConfig)
-			setClientStore(responseClient)
-		} else {
-			c.JSON(500, gin.H{
-				"message": "Invalid Client!",
-			})
-			return
-		}
-
-		token, err := clientConfig.Token(context.Background())
-		if err != nil {
-			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		log.Println(token.TokenType)
-		log.Println(token.AccessToken)
-		log.Println(token.Expiry)
-	})
+	r.GET("/user/token", publicApiRequestHandler)
 
 	log.Fatal(r.Run(":9096"))
 }
@@ -176,4 +149,33 @@ func dumpRequest(writer io.Writer, header string, r *http.Request) error {
 	writer.Write([]byte("\n" + header + ": \n"))
 	writer.Write(data)
 	return nil
+}
+
+func publicApiRequestHandler(c *gin.Context) {
+	_ = dumpRequest(os.Stdout, "user/token", c.Request)
+
+	requestClient := new(PublicApiInfo)
+	_ = c.Bind(requestClient)
+
+	clientConfig := new(clientcredentials.Config)
+	responseClient, flag := isValidClient(requestClient)
+	if flag {
+		setClientConfig(responseClient, clientConfig)
+		setClientStore(responseClient)
+	} else {
+		c.JSON(500, gin.H{
+			"message": "Invalid Client!",
+		})
+		return
+	}
+
+	token, err := clientConfig.Token(context.Background())
+	if err != nil {
+		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Println(token.TokenType)
+	log.Println(token.AccessToken)
+	log.Println(token.Expiry)
 }
