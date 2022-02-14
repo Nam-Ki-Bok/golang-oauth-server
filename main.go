@@ -15,6 +15,7 @@ import (
 	"github.com/joho/godotenv"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/clientcredentials"
+	"infradev-practice/Wade/OAuth2.0-server/utils"
 	"log"
 	"net/http"
 	"os"
@@ -88,11 +89,6 @@ func main() {
 func initManager() {
 	manager.SetAuthorizeCodeTokenCfg(manage.DefaultAuthorizeCodeTokenCfg)
 
-	// use redis token store
-	//manager.MapTokenStorage(oredis.NewRedisStore(&redis.Options{
-	//	Addr: "127.0.0.1:6379",
-	//}))
-
 	manager.MustTokenStorage(store.NewMemoryTokenStore())
 
 	manager.MapAccessGenerate(generates.NewAccessGenerate())
@@ -112,7 +108,7 @@ func initServer() {
 }
 
 func initDatabase() {
-	err := godotenv.Load("/Users/namkibok/KiBokFolder/Go_workspace/golang-oauth-server/.env")
+	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
@@ -128,21 +124,6 @@ func initDatabase() {
 	})
 }
 
-func isValidClient(c *gin.Context) bool {
-	responseClient = new(OauthClients)
-	err := mariaDB.Where("client_id = ?", requestClient.ClientID).Find(responseClient).Error
-
-	if err != nil ||
-		requestClient.ClientID != responseClient.ClientID ||
-		requestClient.ClientSecret != responseClient.ClientSecret ||
-		//responseClient.ClientIP != c.ClientIP() {
-		"::1" != c.ClientIP() {
-		return false
-	}
-
-	return true
-}
-
 func setClientStore() {
 	_ = clientStore.Set(responseClient.ClientID, &models.Client{
 		ID:     responseClient.ClientID,
@@ -153,20 +134,12 @@ func setClientStore() {
 
 func setClientConfig() {
 	clientConfig = new(clientcredentials.Config)
+	scopes := utils.SplitScope(responseClient.Scope)
 
 	clientConfig.ClientID = responseClient.ClientID
 	clientConfig.ClientSecret = responseClient.ClientSecret
 	clientConfig.TokenURL = "http://localhost:9096/oauth/token"
-	clientConfig.Scopes = setScope()
-}
-
-func setScope() []string {
-	return strings.Split(responseClient.Scope, "+")
-}
-
-func bindRequestClient(c *gin.Context) {
-	requestClient = new(PublicApiInfo)
-	_ = c.Bind(requestClient)
+	clientConfig.Scopes = scopes
 }
 
 func publicApiRequestHandler(c *gin.Context) {
@@ -177,7 +150,7 @@ func publicApiRequestHandler(c *gin.Context) {
 		setClientStore()
 	} else {
 		c.JSON(500, gin.H{
-			"message": "Invalid Client!",
+			"message": "invalid client",
 		})
 		return
 	}
@@ -197,7 +170,6 @@ func publicApiRequestHandler(c *gin.Context) {
 	saveAuthorizationInfo(authorizationInfo)
 
 	c.JSON(200, authorizationInfo)
-	return
 }
 
 func userInfoHandler(c *gin.Context) {
@@ -220,11 +192,12 @@ func userInfoHandler(c *gin.Context) {
 
 	responseUser := new(OauthUsers)
 	mariaDB.Where("id = ?", userID).Find(responseUser)
-	c.JSON(http.StatusOK, gin.H{
-		"user_id": responseUser.ID,
-		"phone":   responseUser.Phone,
-		"email":   responseUser.Email,
-	})
+	c.JSON(http.StatusOK, responseUser)
+}
+
+func bindRequestClient(c *gin.Context) {
+	requestClient = new(PublicApiInfo)
+	_ = c.Bind(requestClient)
 }
 
 func saveAuthorizationInfo(authorizationInfo *AuthorizationInfo) {
@@ -232,9 +205,24 @@ func saveAuthorizationInfo(authorizationInfo *AuthorizationInfo) {
 	redisDB.Set(authorizationInfo.UserID, data, authorizationInfo.ExpiresIn.Sub(time.Now()))
 }
 
+func isValidClient(c *gin.Context) bool {
+	responseClient = new(OauthClients)
+
+	err := mariaDB.Where("client_id = ?", requestClient.ClientID).
+		Where("client_secret = ?", requestClient.ClientSecret).
+		Where("server_ip = ?", "1.1.1.1"). // 1.1.1.1 -> c.ClientIP()
+		Find(responseClient).Error
+
+	if err != nil {
+		return false
+	} else {
+		return true
+	}
+}
+
 func isValidScope(userScope string, apiScope string) bool {
 	for _, scope := range strings.Split(userScope, " ") {
-		if scope == apiScope {
+		if apiScope == scope {
 			return true
 		}
 	}
