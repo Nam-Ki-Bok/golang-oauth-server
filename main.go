@@ -143,6 +143,13 @@ func setClientConfig() {
 }
 
 func publicApiRequestHandler(c *gin.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println(r)
+			return
+		}
+	}()
+
 	clientID, clientSecret := utils.BindRequestClient(c)
 
 	if isValidClient(c) {
