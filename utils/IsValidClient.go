@@ -5,11 +5,11 @@ import (
 	"infradev-practice/Wade/OAuth2.0-server/models"
 )
 
-func IsValidClient(id, pw string) bool {
-	err := maria.DB.Where("client_id = ?", id).
-		Where("client_secret = ?", pw).
-		Where("client_ip = ?", "1.1.1.1"). // 1.1.1.1 -> c.ClientIP()
-		Find(&models.OauthClients{}).Error
+func IsValidClient(c *models.OauthClients) bool {
+	err := maria.DB.Where("client_id = ?", c.ClientID).
+		Where("client_secret = ?", c.ClientSecret).
+		Where("client_ip = ?", c.ClientIP).
+		Find(c).Error
 
 	if err != nil {
 		return false
