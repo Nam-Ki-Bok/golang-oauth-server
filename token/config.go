@@ -9,16 +9,16 @@ import (
 )
 
 var (
-	manager = manage.NewDefaultManager()
-	srv     = server.NewServer(server.NewConfig(), manager)
-	cs      = store.NewClientStore()
+	mgr = manage.NewDefaultManager()
+	srv = server.NewServer(server.NewConfig(), mgr)
+	cs  = store.NewClientStore()
 
 	authInfo = new(models.AuthInfo)
 )
 
 func init() {
-	manager.SetClientTokenCfg(manage.DefaultClientTokenCfg)
-	manager.MustTokenStorage(store.NewMemoryTokenStore())
-	manager.MapAccessGenerate(generates.NewAccessGenerate())
-	manager.MapClientStorage(cs)
+	mgr.SetClientTokenCfg(manage.DefaultClientTokenCfg)
+	mgr.MustTokenStorage(store.NewMemoryTokenStore())
+	mgr.MapAccessGenerate(generates.NewAccessGenerate())
+	mgr.MapClientStorage(cs)
 }
