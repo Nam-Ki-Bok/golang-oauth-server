@@ -57,7 +57,7 @@ type PublicApiInfo struct {
 }
 
 type AuthorizationInfo struct {
-	UserID      string    `json:"user_id"`
+	ClientID    string    `json:"client_id"`
 	AccessToken string    `json:"access_token"`
 	Scope       []string  `json:"scope"`
 	ExpiresIn   time.Time `json:"expires_in"`
@@ -87,7 +87,7 @@ func main() {
 }
 
 func initManager() {
-	manager.SetAuthorizeCodeTokenCfg(manage.DefaultAuthorizeCodeTokenCfg)
+	manager.SetClientTokenCfg(manage.DefaultClientTokenCfg)
 
 	manager.MustTokenStorage(store.NewMemoryTokenStore())
 
@@ -152,10 +152,12 @@ func publicApiRequestHandler(c *gin.Context) {
 
 	clientID, clientSecret := utils.BindRequestClient(c)
 
-	if isValidClient(c) {
+	if isValidClient(clientID, clientSecret) {
+		log.Println("durldasdasd")
 		setClientConfig()
 		setClientStore()
 	} else {
+		log.Println("durlㅇㄴㄹㅁㅈㄷㄹd")
 		c.JSON(500, gin.H{
 			"message": "invalid client",
 		})
@@ -169,14 +171,14 @@ func publicApiRequestHandler(c *gin.Context) {
 	}
 
 	authorizationInfo := &AuthorizationInfo{
-		UserID:      requestClient.UserID,
+		ClientID:    responseClient.ClientID,
 		AccessToken: token.AccessToken,
 		Scope:       clientConfig.Scopes,
 		ExpiresIn:   token.Expiry,
 	}
 	saveAuthorizationInfo(authorizationInfo)
 
-	c.JSON(200, authorizationInfo)
+	c.JSON(200, token)
 }
 
 func userInfoHandler(c *gin.Context) {
@@ -204,22 +206,7 @@ func userInfoHandler(c *gin.Context) {
 
 func saveAuthorizationInfo(authorizationInfo *AuthorizationInfo) {
 	data, _ := json.Marshal(authorizationInfo)
-	redisDB.Set(authorizationInfo.UserID, data, authorizationInfo.ExpiresIn.Sub(time.Now()))
-}
-
-func isValidClient(c *gin.Context) bool {
-	responseClient = new(OauthClients)
-
-	err := mariaDB.Where("client_id = ?", requestClient.ClientID).
-		Where("client_secret = ?", requestClient.ClientSecret).
-		Where("server_ip = ?", "1.1.1.1"). // 1.1.1.1 -> c.ClientIP()
-		Find(responseClient).Error
-
-	if err != nil {
-		return false
-	} else {
-		return true
-	}
+	redisDB.Set(authorizationInfo.ClientID, data, authorizationInfo.ExpiresIn.Sub(time.Now()))
 }
 
 func isValidScope(userScope string, apiScope string) bool {
