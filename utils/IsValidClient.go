@@ -8,7 +8,7 @@ import (
 func IsValidClient(id, pw string) bool {
 	err := maria.DB.Where("client_id = ?", id).
 		Where("client_secret = ?", pw).
-		Where("server_ip = ?", "1.1.1.1"). // 1.1.1.1 -> c.ClientIP()
+		Where("client_ip = ?", "1.1.1.1"). // 1.1.1.1 -> c.ClientIP()
 		Find(&models.OauthClients{}).Error
 
 	if err != nil {

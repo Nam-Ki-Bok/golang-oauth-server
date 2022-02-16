@@ -1,15 +1,15 @@
 package models
 
 type OauthClients struct {
-	ClientID     string `gorm:"varchar(80);primary_key"`
-	ClientSecret string `gorm:"varchar(80);"`
-	ClientIP     string `gorm:"varchar(16);"`
-	GrantTypes   string `gorm:"varchar(80);"`
-	Scope        string `gorm:"varchar(1600);"`
+	ClientID     string //`gorm:"varchar(80);primary_key"`
+	ClientSecret string //`gorm:"varchar(80);"`
+	ClientIP     string //`gorm:"varchar(16);"`
+	GrantType    string //`gorm:"varchar(80);"`
+	Scope        string //`gorm:"varchar(1600);"`
 }
 
-// New create to client model instance
-func New() *OauthClients {
+// NewClient create to client model instance
+func NewClient() *OauthClients {
 	return &OauthClients{}
 }
 
@@ -26,7 +26,7 @@ func (c *OauthClients) GetClientIP() string {
 }
 
 func (c *OauthClients) GetGrantType() string {
-	return c.GrantTypes
+	return c.GrantType
 }
 
 func (c *OauthClients) GetScope() string {
