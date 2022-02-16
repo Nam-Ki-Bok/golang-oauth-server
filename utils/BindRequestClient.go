@@ -13,7 +13,7 @@ import (
 func BindClientInfo(c *gin.Context) (string, string) {
 	authVal := c.Request.Header.Get("Authorization")
 	if authVal == "" {
-		ReturnError(c, http.StatusPreconditionFailed, "Header does not have authorization field")
+		ReturnError(c, http.StatusUnauthorized, "Header does not have authorization field")
 	}
 
 	sAuthVal := strings.Split(authVal, " ")[1]
