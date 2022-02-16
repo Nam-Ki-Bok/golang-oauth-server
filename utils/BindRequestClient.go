@@ -11,13 +11,13 @@ import (
 func BindClientInfo(c *gin.Context) (string, string) {
 	authVal := c.Request.Header.Get("Authorization")
 	if authVal == "" {
-		ReturnError(c, http.StatusPreconditionFailed, "header does not have authorization field")
+		ReturnError(c, http.StatusPreconditionFailed, "Header does not have authorization field")
 	}
 
 	sAuthVal := strings.Split(authVal, " ")[1]
 	decAuthVal, err := base64.StdEncoding.DecodeString(sAuthVal)
 	if err != nil {
-		ReturnError(c, http.StatusInternalServerError, "client id, pw decoding error")
+		ReturnError(c, http.StatusInternalServerError, "Client id, pw decoding error")
 	}
 
 	sDecData := strings.Split(string(decAuthVal), ":")
