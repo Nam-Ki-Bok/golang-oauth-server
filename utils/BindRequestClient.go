@@ -8,17 +8,21 @@ import (
 )
 
 // BindRequestClient decoding basic auth value of authorization
-func BindRequestClient(c *gin.Context) (id, pw string, err error) {
-	data := strings.Split(c.Request.Header.Get("Authorization"), " ")[1]
+func BindRequestClient(c *gin.Context) (string, string) {
+	authVal := c.Request.Header.Get("Authorization")
+	if authVal == "" {
+		ReturnError(c, http.StatusPreconditionFailed, "header does not have authorization field")
+	}
 
-	sDec, err := base64.StdEncoding.DecodeString(data)
+	sAuthVal := strings.Split(authVal, " ")[1]
+	decAuthVal, err := base64.StdEncoding.DecodeString(sAuthVal)
 	if err != nil {
 		ReturnError(c, http.StatusInternalServerError, "client id, pw decoding error")
 	}
 
-	split := strings.Split(string(sDec), ":")
-	id = split[0]
-	pw = split[1]
+	sDecData := strings.Split(string(decAuthVal), ":")
+	id := sDecData[0]
+	pw := sDecData[1]
 
-	return id, pw, nil
+	return id, pw
 }
