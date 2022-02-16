@@ -143,7 +143,7 @@ func setClientConfig() {
 }
 
 func publicApiRequestHandler(c *gin.Context) {
-	bindRequestClient(c)
+	clientID, clientSecret := utils.BindRequestClient(c)
 
 	if isValidClient(c) {
 		setClientConfig()
@@ -193,11 +193,6 @@ func userInfoHandler(c *gin.Context) {
 	responseUser := new(OauthUsers)
 	mariaDB.Where("id = ?", userID).Find(responseUser)
 	c.JSON(http.StatusOK, responseUser)
-}
-
-func bindRequestClient(c *gin.Context) {
-	requestClient = new(PublicApiInfo)
-	_ = c.Bind(requestClient)
 }
 
 func saveAuthorizationInfo(authorizationInfo *AuthorizationInfo) {
