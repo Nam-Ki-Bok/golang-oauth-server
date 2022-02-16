@@ -1,11 +1,11 @@
 package models
 
 type OauthClients struct {
-	ClientID     string `gorm:"varchar(80);primary_key" json:"client_id"`
-	ClientSecret string `gorm:"varchar(80);" json:"client_secret"`
-	ClientIP     string `gorm:"varchar(16);" json:"client_ip"`
-	GrantTypes   string `gorm:"varchar(80);" json:"grant_types"`
-	Scope        string `gorm:"varchar(1600);" json:"scope"`
+	ClientID     string `gorm:"varchar(80);primary_key"`
+	ClientSecret string `gorm:"varchar(80);"`
+	ClientIP     string `gorm:"varchar(16);"`
+	GrantTypes   string `gorm:"varchar(80);"`
+	Scope        string `gorm:"varchar(1600);"`
 }
 
 // New create to client model instance
