@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// BindRequestClient decoding basic auth value of authorization
-func BindRequestClient(c *gin.Context) (string, string) {
+// BindClientInfo decoding basic auth value of authorization field
+func BindClientInfo(c *gin.Context) (string, string) {
 	authVal := c.Request.Header.Get("Authorization")
 	if authVal == "" {
 		ReturnError(c, http.StatusPreconditionFailed, "header does not have authorization field")
@@ -22,7 +22,7 @@ func BindRequestClient(c *gin.Context) (string, string) {
 
 	sDecData := strings.Split(string(decAuthVal), ":")
 	id := sDecData[0]
-	pw := sDecData[1]
+	secret := sDecData[1]
 
-	return id, pw
+	return id, secret
 }
