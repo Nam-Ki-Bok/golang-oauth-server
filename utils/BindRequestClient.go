@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
@@ -24,5 +26,9 @@ func BindClientInfo(c *gin.Context) (string, string) {
 	id := sDecData[0]
 	secret := sDecData[1]
 
-	return id, secret
+	hash := sha256.New()
+	hash.Write([]byte(secret))
+	shaSecret := hex.EncodeToString(hash.Sum(nil))
+
+	return id, shaSecret
 }
