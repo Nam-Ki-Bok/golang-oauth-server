@@ -32,7 +32,7 @@ func init() {
 func main() {
 	r := gin.Default()
 
-	r.GET("/token", publicApiRequestHandler)
+	r.GET("/token", generateTokenHandler)
 	r.POST("/generate/token", func(c *gin.Context) {
 		err := srv.HandleTokenRequest(c.Writer, c.Request)
 		if err != nil {
@@ -50,13 +50,18 @@ func initManager() {
 	manager.MapClientStorage(clientStore)
 }
 
-func publicApiRequestHandler(c *gin.Context) {
+func generateTokenHandler(c *gin.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println(r)
-			return
 		}
 	}()
+
+	authInfo := new(models.AuthInfo)
+	if authInfo.IsExists(c) {
+		c.JSON(http.StatusOK, authInfo)
+		return
+	}
 
 	client := models.NewClient(c)
 	if client.IsValid() {
@@ -74,10 +79,11 @@ func publicApiRequestHandler(c *gin.Context) {
 		utils.ReturnError(c, http.StatusInternalServerError, "Failed to generate a token")
 	}
 
-	authInfo := models.NewAuthInfo(client, token)
+	authInfo = models.NewAuthInfo(client, token)
 	authInfo.SaveRedis()
 
-	c.JSON(200, authInfo)
+	c.JSON(http.StatusOK, authInfo)
+	return
 }
 
 func SaveClientStore(c *models.OauthClients) error {
