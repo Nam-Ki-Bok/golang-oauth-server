@@ -23,7 +23,10 @@ var (
 )
 
 func init() {
-	initManager()
+	manager.SetClientTokenCfg(manage.DefaultClientTokenCfg)
+	manager.MustTokenStorage(store.NewMemoryTokenStore())
+	manager.MapAccessGenerate(generates.NewAccessGenerate())
+	manager.MapClientStorage(clientStore)
 
 	maria.Connect()
 	redis.Connect()
@@ -32,25 +35,13 @@ func init() {
 func main() {
 	r := gin.Default()
 
-	r.GET("/token", generateTokenHandler)
-	r.POST("/generate/token", func(c *gin.Context) {
-		err := srv.HandleTokenRequest(c.Writer, c.Request)
-		if err != nil {
-			utils.ReturnError(c, http.StatusInternalServerError, "Failed to generate a Token")
-		}
-	})
+	r.GET("/token", tokenHandler)
+	r.POST("/generate/token", generateTokenHandler)
 
 	log.Fatal(r.Run(":9096"))
 }
 
-func initManager() {
-	manager.SetClientTokenCfg(manage.DefaultClientTokenCfg)
-	manager.MustTokenStorage(store.NewMemoryTokenStore())
-	manager.MapAccessGenerate(generates.NewAccessGenerate())
-	manager.MapClientStorage(clientStore)
-}
-
-func generateTokenHandler(c *gin.Context) {
+func tokenHandler(c *gin.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println(r)
@@ -84,6 +75,13 @@ func generateTokenHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, authInfo)
 	return
+}
+
+func generateTokenHandler(c *gin.Context) {
+	err := srv.HandleTokenRequest(c.Writer, c.Request)
+	if err != nil {
+		utils.ReturnError(c, http.StatusInternalServerError, "Failed to generate a Token")
+	}
 }
 
 func SaveClientStore(c *models.OauthClients) error {
