@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/go-oauth2/oauth2/v4/generates"
 	"github.com/go-oauth2/oauth2/v4/manage"
 	"github.com/go-oauth2/oauth2/v4/server"
 	"github.com/go-oauth2/oauth2/v4/store"
 
-	"golang.org/x/net/context"
+	//"golang.org/x/net/context"
 	"infradev-practice/Wade/OAuth2.0-server/database/maria"
 	"infradev-practice/Wade/OAuth2.0-server/database/redis"
 	"infradev-practice/Wade/OAuth2.0-server/models"
@@ -48,14 +49,14 @@ func tokenHandler(c *gin.Context) {
 		}
 	}()
 
-	authInfo := new(models.AuthInfo)
-	if authInfo.IsExists(c) {
-		c.JSON(http.StatusOK, authInfo)
-		return
-	}
-
 	client := models.NewClient(c)
 	if client.IsValid() {
+		authInfo := new(models.AuthInfo)
+		if authInfo.IsExists(client) {
+			c.JSON(http.StatusOK, authInfo)
+			return
+		}
+
 		err := SaveClientStore(client)
 		if err != nil {
 			utils.ReturnError(c, http.StatusInternalServerError, "Failed to save to client store")
@@ -70,7 +71,7 @@ func tokenHandler(c *gin.Context) {
 		utils.ReturnError(c, http.StatusInternalServerError, "Failed to generate a token")
 	}
 
-	authInfo = models.NewAuthInfo(client, token)
+	authInfo := models.NewAuthInfo(client, token)
 	authInfo.SaveRedis()
 
 	c.JSON(http.StatusOK, authInfo)
