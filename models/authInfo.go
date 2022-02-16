@@ -2,10 +2,8 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	"infradev-practice/Wade/OAuth2.0-server/database/redis"
-	"infradev-practice/Wade/OAuth2.0-server/utils"
 	"time"
 )
 
@@ -30,8 +28,8 @@ func (a *AuthInfo) SaveRedis() {
 	redis.DB.Set(a.ClientID, data, a.ExpiresIn.Sub(time.Now()))
 }
 
-func (a *AuthInfo) IsExists(c *gin.Context) bool {
-	id, _ := utils.BindClientInfo(c)
+func (a *AuthInfo) IsExists(c *OauthClients) bool {
+	id := c.GetClientID()
 
 	err := redis.DB.Get(id).Err()
 	if err == redis.NilErr {
