@@ -11,7 +11,7 @@ import (
 	"os"
 )
 
-type OauthClients struct {
+type Clients struct {
 	ClientID     string
 	ClientSecret string
 	ClientIP     string
@@ -23,7 +23,7 @@ type OauthClients struct {
 }
 
 var (
-	Client *OauthClients
+	Client *Clients
 )
 
 func InitClient(c *gin.Context) {
@@ -40,7 +40,7 @@ func InitClient(c *gin.Context) {
 		utils.ReturnError(http.StatusUnauthorized, err)
 	}
 
-	Client = &OauthClients{
+	Client = &Clients{
 		ClientID:     id,
 		ClientSecret: utils.GenerateSHA256(secret),
 		ClientIP:     c.ClientIP(),
@@ -48,7 +48,7 @@ func InitClient(c *gin.Context) {
 }
 
 // IsValid check client in ACL
-func (c *OauthClients) IsValid() bool {
+func (c *Clients) IsValid() bool {
 	result := maria.DB.Where("client_id = ?", c.ClientID).
 		Where("client_secret = ?", c.ClientSecret).
 		Where("client_ip = ?", c.ClientIP).Find(c)
@@ -60,7 +60,7 @@ func (c *OauthClients) IsValid() bool {
 }
 
 // SetConfig set clientcredentials.Config struct
-func (c *OauthClients) SetConfig() {
+func (c *Clients) SetConfig() {
 	c.Config = &clientcredentials.Config{
 		ClientID:     c.ClientID,
 		ClientSecret: c.ClientSecret,
@@ -70,7 +70,7 @@ func (c *OauthClients) SetConfig() {
 }
 
 // SetSaveModel set model to store in the client store
-func (c *OauthClients) SetSaveModel() {
+func (c *Clients) SetSaveModel() {
 	c.SaveModel = &models.Client{
 		ID:     c.ClientID,
 		Secret: c.ClientSecret,
@@ -78,42 +78,42 @@ func (c *OauthClients) SetSaveModel() {
 	}
 }
 
-func (c *OauthClients) GetClientID() string {
+func (c *Clients) GetClientID() string {
 	return c.ClientID
 }
 
-func (c *OauthClients) SetClientID(id string) {
+func (c *Clients) SetClientID(id string) {
 	c.ClientID = id
 }
 
-func (c *OauthClients) GetClientSecret() string {
+func (c *Clients) GetClientSecret() string {
 	return c.ClientSecret
 }
 
-func (c *OauthClients) SetClientSecret(secret string) {
+func (c *Clients) SetClientSecret(secret string) {
 	c.ClientSecret = secret
 }
 
-func (c *OauthClients) GetClientIP() string {
+func (c *Clients) GetClientIP() string {
 	return c.ClientIP
 }
 
-func (c *OauthClients) SetClientIP(ip string) {
+func (c *Clients) SetClientIP(ip string) {
 	c.ClientIP = ip
 }
 
-func (c *OauthClients) GetGrantType() string {
+func (c *Clients) GetGrantType() string {
 	return c.GrantType
 }
 
-func (c *OauthClients) GetScope() []string {
+func (c *Clients) GetScope() []string {
 	return c.Config.Scopes
 }
 
-func (c *OauthClients) GetConfig() *clientcredentials.Config {
+func (c *Clients) GetConfig() *clientcredentials.Config {
 	return c.Config
 }
 
-func (c *OauthClients) GetSaveModel() *models.Client {
+func (c *Clients) GetSaveModel() *models.Client {
 	return c.SaveModel
 }

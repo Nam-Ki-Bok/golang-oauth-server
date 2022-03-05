@@ -19,7 +19,7 @@ type AuthInfo struct {
 var defaultDateFormat = "2006-01-02 15:04:05"
 var ctx = context.Background()
 
-func NewAuthInfo(c *OauthClients, t *oauth2.Token) *AuthInfo {
+func NewAuthInfo(c *Clients, t *oauth2.Token) *AuthInfo {
 	return &AuthInfo{
 		ClientID:    c.ClientID,
 		AccessToken: t.AccessToken,
