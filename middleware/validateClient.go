@@ -13,7 +13,7 @@ func ValidateClient(c *gin.Context) {
 	models.InitClient(c)
 	fmt.Println("여기 변경이 메인엔 없어야지????")
 	if ok := models.Client.IsValid(); !ok {
-		utils.ReturnError(c, http.StatusUnauthorized, errors.New("invalid client"))
+		utils.ReturnError(http.StatusUnauthorized, errors.New("invalid client"))
 	}
 
 	c.Next()

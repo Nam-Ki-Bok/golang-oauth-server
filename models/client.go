@@ -29,15 +29,15 @@ var (
 func InitClient(c *gin.Context) {
 	id, secret, ok := c.Request.BasicAuth()
 	if !ok {
-		utils.ReturnError(c, http.StatusUnauthorized, errors.New("authentication information error"))
+		utils.ReturnError(http.StatusUnauthorized, errors.New("authentication information error"))
 	}
 
 	if err := utils.CheckID(id); err != nil {
-		utils.ReturnError(c, http.StatusUnauthorized, err)
+		utils.ReturnError(http.StatusUnauthorized, err)
 	}
 
 	if err := utils.CheckSecret(secret); err != nil {
-		utils.ReturnError(c, http.StatusUnauthorized, err)
+		utils.ReturnError(http.StatusUnauthorized, err)
 	}
 
 	Client = &OauthClients{

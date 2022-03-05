@@ -20,13 +20,13 @@ func ValidateScope(c *gin.Context) {
 
 	err := maria.DB.Where("resource = ?", resource).Find(&api).Error
 	if err != nil {
-		utils.ReturnError(c, http.StatusBadRequest, err)
+		utils.ReturnError(http.StatusBadRequest, err)
 	}
 
 	clientScope := c.GetInt("scope")
 
 	if clientScope < api.Scope {
-		utils.ReturnError(c, http.StatusUnauthorized, errors.New("invalid scope"))
+		utils.ReturnError(http.StatusUnauthorized, errors.New("invalid scope"))
 	}
 
 	c.Next()

@@ -55,14 +55,27 @@ func customLogFormatter(param gin.LogFormatterParams) string {
 	return objectID
 }
 
-func customRecover(c *gin.Context, recovered interface{}) {
-	err := recovered.(gin.H)
+//func customRecover(c *gin.Context, recovered interface{}) {
+//	err := recovered.(gin.H)
+//
+//	code := err["code"].(int)
+//	contents := err["err"].(string)
+//
+//	c.AbortWithStatusJSON(code, gin.H{
+//		"status": false,
+//		"error":  contents,
+//	})
+//}
 
-	code := err["code"].(int)
-	contents := err["err"].(string)
+func customRecover(c *gin.Context, recovered interface{}) {
+	r := recovered.(map[string]interface{})
+	code := r["code"].(int)
+	err := r["err"].(error)
+
+	c.Error(err)
 
 	c.AbortWithStatusJSON(code, gin.H{
 		"status": false,
-		"error":  contents,
+		"error":  err.Error(),
 	})
 }

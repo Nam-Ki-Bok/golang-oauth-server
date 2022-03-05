@@ -1,16 +1,11 @@
 package utils
 
-import (
-	"github.com/gin-gonic/gin"
-)
-
 // ReturnError Return various errors to JSON
-func ReturnError(c *gin.Context, code int, err error) {
-	c.Error(err)
-
-	recovered := gin.H{
+func ReturnError(code int, err error) {
+	
+	recovered := map[string]interface{}{
 		"code": code,
-		"err":  err.Error(),
+		"err":  err,
 	}
 
 	panic(recovered)

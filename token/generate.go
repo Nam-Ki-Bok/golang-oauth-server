@@ -9,6 +9,6 @@ import (
 func Generate(c *gin.Context) {
 	err := Srv.HandleTokenRequest(c.Writer, c.Request)
 	if err != nil {
-		utils.ReturnError(c, http.StatusUnauthorized, err)
+		utils.ReturnError(http.StatusUnauthorized, err)
 	}
 }

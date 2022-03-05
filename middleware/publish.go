@@ -13,7 +13,7 @@ func Publish(c *gin.Context) {
 
 	msg, ok := c.Get("msg")
 	if !ok {
-		utils.ReturnError(c, http.StatusBadRequest, errors.New("message dose not exist"))
+		utils.ReturnError(http.StatusBadRequest, errors.New("message dose not exist"))
 	}
 
 	// execute kafka publish

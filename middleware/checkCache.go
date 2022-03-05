@@ -19,7 +19,7 @@ func CheckCache(c *gin.Context) {
 		authCache := new(models.AuthInfo)
 		err := json.Unmarshal([]byte(cache.Val()), &authCache)
 		if err != nil {
-			utils.ReturnError(c, http.StatusBadRequest, err)
+			utils.ReturnError(http.StatusBadRequest, err)
 		}
 		c.AbortWithStatusJSON(http.StatusOK, authCache)
 	}

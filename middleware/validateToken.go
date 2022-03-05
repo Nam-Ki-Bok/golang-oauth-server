@@ -13,12 +13,12 @@ func ValidateToken(c *gin.Context) {
 	// Token.Srv uses the token authentication process of go-oauth2.
 	tokenInfo, err := token.Srv.ValidationBearerToken(c.Request)
 	if err != nil {
-		utils.ReturnError(c, http.StatusUnauthorized, err)
+		utils.ReturnError(http.StatusUnauthorized, err)
 	}
 
 	scope, err := strconv.Atoi(tokenInfo.GetScope())
 	if err != nil {
-		utils.ReturnError(c, http.StatusBadRequest, errors.New("failed to convert string scope to integer scope"))
+		utils.ReturnError(http.StatusBadRequest, errors.New("failed to convert string scope to integer scope"))
 	}
 
 	c.Set("client_id", tokenInfo.GetClientID())
