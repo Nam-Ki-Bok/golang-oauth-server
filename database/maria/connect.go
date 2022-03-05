@@ -22,5 +22,5 @@ func Connect() {
 	}
 
 	DB = db
-
+	log.Println("Maria connected successfully")
 }

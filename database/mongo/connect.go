@@ -30,4 +30,5 @@ func Connect() {
 	}
 
 	RequestLog = client
+	log.Println("Mongo connected successfully")
 }
