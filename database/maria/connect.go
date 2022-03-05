@@ -22,4 +22,5 @@ func Connect() {
 	}
 
 	DB = db
+
 }

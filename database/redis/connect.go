@@ -18,7 +18,9 @@ func Connect() {
 	})
 
 	if db.Ping(ctx).String() != "ping: PONG" {
-		log.Fatal("Redis connect error")
+		log.Fatal("Redis connection failed")
+	} else {
+		log.Println("Redis connected successfully")
 	}
 
 	DB = db
