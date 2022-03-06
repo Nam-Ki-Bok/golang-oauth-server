@@ -9,20 +9,18 @@ import (
 )
 
 func Request(c *gin.Context) {
-	models.Client.SetSaveModel()
-	err := Cs.Set(models.Client.GetClientID(), models.Client.GetSaveModel())
-	if err != nil {
+	client := models.NewClient(c)
+
+	if err := Cs.Set(client.ClientID, client.SaveModel); err != nil {
 		utils.ReturnError(http.StatusBadRequest, err)
 	}
 
-	models.Client.SetConfig()
-	cfg := models.Client.GetConfig()
-	token, err := cfg.Token(context.Background())
+	token, err := client.Config.Token(context.Background())
 	if err != nil {
 		utils.ReturnError(http.StatusUnauthorized, err)
 	}
 
-	authCache := models.NewAuthInfo(models.Client, token)
+	authCache := models.NewAuthInfo(client, token)
 	authCache.SaveRedis()
 
 	c.SecureJSON(http.StatusOK, authCache)
