@@ -23,9 +23,9 @@ func ValidateScope(c *gin.Context) {
 		utils.ReturnError(http.StatusBadRequest, err)
 	}
 
-	clientScope := c.GetInt("scope")
+	scope := c.GetInt("scope")
 
-	if clientScope < api.Scope {
+	if scope < api.Scope {
 		utils.ReturnError(http.StatusUnauthorized, errors.New("invalid scope"))
 	}
 
