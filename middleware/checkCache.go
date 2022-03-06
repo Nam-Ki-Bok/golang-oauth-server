@@ -12,7 +12,7 @@ import (
 // CheckCache If there is an auth record,
 // Auth record will be returned without going through the token generation process
 func CheckCache(c *gin.Context) {
-	id := models.Client.GetClientID()
+	id := c.GetString("client_id")
 	cache := redis.DB.Get(c, id)
 
 	if cache.Err() != redis.Nil {
