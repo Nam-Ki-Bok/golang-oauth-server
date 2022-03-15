@@ -1,0 +1,48 @@
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  CONTAINER_NAME: $SERVICE_NAME
+  IMAGE_NAME: $SERVICE_NAME
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
+test:
+  stage: test
+  image: golang:1.17
+  script:
+    - cd Wade/OAuth2.0-server
+    - cp $ENV_FILE .env
+    - go test -coverprofile=profile ./...
+    - go tool cover -func profile
+
+package-docker-image:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - cd Wade/OAuth2.0-server
+    - cp $ENV_FILE .env
+    - docker login -u $DOCKER_HUB_ID -p $DOCKER_HUB_PASSWORD
+    - docker build -t $DOCKER_HUB_ID/$IMAGE_NAME .
+    - docker images
+    - docker push $DOCKER_HUB_ID/$IMAGE_NAME
+
+deploy:
+  stage: deploy
+  image: docker:stable
+  tags:
+    - test-core-process-oauth-runner
+  services:
+    - docker:dind
+  script:
+    - docker login -u $DOCKER_HUB_ID -p $DOCKER_HUB_PASSWORD
+    - docker pull $DOCKER_HUB_ID/$IMAGE_NAME
+    - hostname -i
+    - ls -la
+    - pwd
+    - docker run --name $CONTAINER_NAME -d -p $SERVICE_PORT:$SERVICE_PORT -p $MARIA_PORT:$MARIA_PORT -e MYSQL_ROOT_PASSWORD=$MARIA_PASSWORD $DOCKER_HUB_ID/$IMAGE_NAME
+    - docker container ps
