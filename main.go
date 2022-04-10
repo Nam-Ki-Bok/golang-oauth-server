@@ -30,7 +30,5 @@ func main() {
 
 	r := server.Setup()
 
-	redis.DB.FlushAll(ctx)
-
 	log.Fatal(r.Run(":1054"))
 }
